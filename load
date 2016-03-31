@@ -1,0 +1,177 @@
+#!/usr/local/bin/zsh
+
+###
+# load
+#
+# A small cross-platform script for outputting a load average
+# and spark line graph
+#
+# (c) James Dinsdale 2016
+#     hi@molovo.co
+###
+
+###
+# Output usage information
+###
+function usage() {
+echo "\e[0;33mUsage:\e[0;m
+  load [options]
+
+\e[0;33mOptions:\e[0;m
+  -h, --help    Show help text and exit
+  -t, --tmux    Display output using tmux-style colorisation"
+}
+
+###
+# Colorise a spark based on the corresponding value
+###
+function colorise() {
+  local spark value limit tmux color
+
+  spark=$1
+  value=$2
+  limit=$3
+  tmux=$4
+
+  # Colorise the sparks for use in tmux status line if the option is set
+  if [[ $tmux ]]; then
+    color='green'
+    if (( $value > $((90 * $(($limit / 100)))) )); then
+      color='red'
+    elif (( $value > $((40 * $(($limit / 100)))) )); then
+      color='yellow'
+    fi
+
+    echo "#[fg=${color}]$spark#[default]"
+    return
+  fi
+
+  # Colorise using ANSI escape codes
+  color=2
+  if (( $value > $((90 * $(($limit / 100)))) )); then
+    color=1
+  elif (( $value > $((40 * $(($limit / 100)))) )); then
+    color=3
+  fi
+
+  echo "\\e[0;3${color}m$spark\\e[0;m"
+  return
+}
+
+###
+# Get the number of CPUs in this machine
+###
+function cpu-count() {
+  if [[ "$OSTYPE" == darwin* ]]; then
+    echo "$(($(sysctl -n hw.logicalcpu)))"
+  else
+    echo "$(($(egrep -c '^processor' /proc/cpuinfo)))"
+  fi
+}
+
+###
+# Get the current load average
+###
+function load-average() {
+  if [[ "$OSTYPE" == darwin* ]]; then
+    echo "$(sysctl -n vm.loadavg | cut -d ' ' -f 2-4)"
+  else
+    echo "$(cat /proc/loadavg | cut -d ' ' -f 1-3)"
+  fi
+}
+
+###
+# Get the 1-min average as a percentage
+###
+function load-percentage() {
+  local load cpu_count percentage color
+
+  load=$(load-average | cut -d ' ' -f 1)
+  cpu_count=$(cpu-count)
+  percentage=$(printf "%.*f" 2 $(($(($load / $cpu_count)) * 100)))
+
+  echo $(colorise "$percentage%" $percentage 100 $tmux)
+}
+
+###
+# Render the graph
+###
+function render() {
+  local tmux load limit cpu_count str values sparks one two three
+
+  tmux=$1
+
+  # Get the current load averages and cpu count
+  load=$(load-average)
+  cpu_count=$(cpu-count)
+
+  # Pass the load averages and cpu count into a an array
+  # of values, then replace any dots in the values
+  values=($(echo "${load} ${cpu_count}00 0" | sed "s/\\.//g"))
+
+  # Remove any leading zeroes from each of the values, and create
+  # a string ready to pass to spark
+  str="$((10#${values[1]})) \
+       $((10#${values[2]})) \
+       $((10#${values[3]})) \
+       $((10#${values[4]})) \
+       $((10#${values[5]}))"
+
+  # Pass the string to spark, and grab the sparks we care about
+  sparks=$(echo "$str" | spark | tail -n 1 | cut -b 1-9)
+
+  # Colorise each of the sparks
+  limit=$(($cpu_count * 100))
+  one=$(colorise "$(echo $sparks | cut -b 1-3)" ${values[1]} $limit $tmux)
+  two=$(colorise "$(echo $sparks | cut -b 4-6)" ${values[2]} $limit $tmux)
+  three=$(colorise "$(echo $sparks | cut -b 7-9)" ${values[3]} $limit $tmux)
+
+  # Concatenate and echo to screen
+  echo "$(load-percentage) $one$two$three"
+}
+
+###
+# Parse options and render the graph
+###
+function load() {
+  local tmux
+
+  while getopts ":ht-:" opt; do
+    case $opt in
+      -)
+        case "${OPTARG}" in
+          help)
+            usage
+            exit 0
+            ;;
+          tmux)
+            tmux=1
+            ;;
+          *)
+            echo "Unknown option --${OPTARG}"
+            echo
+            usage
+            exit 1
+            ;;
+        esac
+        ;;
+      h)
+        usage
+        exit 0
+        ;;
+      t)
+        tmux=1
+        ;;
+      *)
+        echo "Unknown option -${OPTARG}"
+        echo
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  render $tmux
+}
+
+load "$@"
