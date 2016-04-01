@@ -1,11 +1,11 @@
-# Load
+# load-graph
 
 Outputs the current 1-minute load average as a percentage, and a spark line
 graph of the 1, 5 and 15 minute averages.
 
 ## Usage
 ```sh
-load [options]
+load-graph [options]
 ```
 
 ## Options
@@ -16,5 +16,5 @@ load [options]
 
 ## Installation
 
-Place `load` somewhere in your path. Requires [ZSH](http://zsh.org) and
+Place `load-graph` somewhere in your path. Requires [ZSH](http://zsh.org) and
 [Spark](http://github.com/holman/spark).

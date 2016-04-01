@@ -1,7 +1,7 @@
 #!/usr/local/bin/zsh
 
 ###
-# load
+# load-graph
 #
 # A small cross-platform script for outputting a load average
 # and spark line graph
@@ -13,9 +13,9 @@
 ###
 # Output usage information
 ###
-function usage() {
+function load_graph_usage() {
 echo "\e[0;33mUsage:\e[0;m
-  load [options]
+  load-graph [options]
 
 \e[0;33mOptions:\e[0;m
   -h, --help    Show help text and exit
@@ -25,7 +25,7 @@ echo "\e[0;33mUsage:\e[0;m
 ###
 # Colorise a spark based on the corresponding value
 ###
-function colorise() {
+function load_graph_colorise() {
   local spark value limit tmux color
 
   spark=$1
@@ -61,7 +61,7 @@ function colorise() {
 ###
 # Get the number of CPUs in this machine
 ###
-function cpu-count() {
+function load_graph_cpu_count() {
   if [[ "$OSTYPE" == darwin* ]]; then
     echo "$(($(sysctl -n hw.logicalcpu)))"
   else
@@ -72,7 +72,7 @@ function cpu-count() {
 ###
 # Get the current load average
 ###
-function load-average() {
+function load_graph_load_average() {
   if [[ "$OSTYPE" == darwin* ]]; then
     echo "$(sysctl -n vm.loadavg | cut -d ' ' -f 2-4)"
   else
@@ -83,27 +83,27 @@ function load-average() {
 ###
 # Get the 1-min average as a percentage
 ###
-function load-percentage() {
+function load_graph_load_percentage() {
   local load cpu_count percentage color
 
-  load=$(load-average | cut -d ' ' -f 1)
-  cpu_count=$(cpu-count)
+  load=$(load_graph_load_average | cut -d ' ' -f 1)
+  cpu_count=$(load_graph_cpu_count)
   percentage=$(printf "%.*f" 2 $(($(($load / $cpu_count)) * 100)))
 
-  echo $(colorise "$percentage%" $percentage 100 $tmux)
+  echo $(load_graph_colorise "$percentage%" $percentage 100 $tmux)
 }
 
 ###
 # Render the graph
 ###
-function render() {
+function load_graph_render() {
   local tmux load limit cpu_count str values sparks one two three
 
   tmux=$1
 
   # Get the current load averages and cpu count
-  load=$(load-average)
-  cpu_count=$(cpu-count)
+  load=$(load_graph_load_average)
+  cpu_count=$(load_graph_cpu_count)
 
   # Pass the load averages and cpu count into a an array
   # of values, then replace any dots in the values
@@ -122,18 +122,18 @@ function render() {
 
   # Colorise each of the sparks
   limit=$(($cpu_count * 100))
-  one=$(colorise "$(echo $sparks | cut -b 1-3)" ${values[1]} $limit $tmux)
-  two=$(colorise "$(echo $sparks | cut -b 4-6)" ${values[2]} $limit $tmux)
-  three=$(colorise "$(echo $sparks | cut -b 7-9)" ${values[3]} $limit $tmux)
+  one=$(load_graph_colorise "$(echo $sparks | cut -b 1-3)" ${values[1]} $limit $tmux)
+  two=$(load_graph_colorise "$(echo $sparks | cut -b 4-6)" ${values[2]} $limit $tmux)
+  three=$(load_graph_colorise "$(echo $sparks | cut -b 7-9)" ${values[3]} $limit $tmux)
 
   # Concatenate and echo to screen
-  echo "$(load-percentage) $one$two$three"
+  echo "$(load_graph_load_percentage) $one$two$three"
 }
 
 ###
 # Parse options and render the graph
 ###
-function load() {
+function load_graph() {
   local tmux
 
   while getopts ":ht-:" opt; do
@@ -141,7 +141,7 @@ function load() {
       -)
         case "${OPTARG}" in
           help)
-            usage
+            load_graph_usage
             exit 0
             ;;
           tmux)
@@ -150,13 +150,13 @@ function load() {
           *)
             echo "Unknown option --${OPTARG}"
             echo
-            usage
+            load_graph_usage
             exit 1
             ;;
         esac
         ;;
       h)
-        usage
+        load_graph_usage
         exit 0
         ;;
       t)
@@ -165,13 +165,13 @@ function load() {
       *)
         echo "Unknown option -${OPTARG}"
         echo
-        usage
+        load_graph_usage
         exit 1
         ;;
     esac
   done
 
-  render $tmux
+  load_graph_render $tmux
 }
 
-load "$@"
+load_graph "$@"
