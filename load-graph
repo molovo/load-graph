@@ -118,7 +118,9 @@ function load_graph_render() {
        $((10#${values[5]}))"
 
   # Pass the string to spark, and grab the sparks we care about
-  sparks=$(echo "$str" | spark | tail -n 1 | cut -b 1-9)
+  if type spark 2>&1 > /dev/null; then
+    sparks=$(echo "$str" | spark | tail -n 1 | cut -b 1-9)
+  fi
 
   # Colorise each of the sparks
   limit=$(($cpu_count * 100))
